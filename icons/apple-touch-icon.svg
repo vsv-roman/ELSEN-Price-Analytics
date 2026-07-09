@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180">
+  <rect width="180" height="180" rx="40" fill="#1e293b"/>
+  <text x="90" y="110" text-anchor="middle" 
+        font-family="system-ui, sans-serif" 
+        font-size="48" font-weight="800" fill="#f8fafc">
+    E
+  </text>
+  <rect x="30" y="130" width="20" height="30" rx="4" fill="#3b82f6"/>
+  <rect x="58" y="115" width="20" height="45" rx="4" fill="#8b5cf6"/>
+  <rect x="86" y="122" width="20" height="38" rx="4" fill="#3b82f6"/>
+  <rect x="114" y="105" width="20" height="55" rx="4" fill="#8b5cf6"/>
+</svg>
