@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>ELSEN | Конкурентный ценовой анализ</title>
+
+  <!-- ═══ PWA META TAGS ═══ -->
+  <meta name="description" content="Дашборд для анализа конкурентных цен ELSEN">
+  <meta name="theme-color" content="#1e293b">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="ELSEN Прайс">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="application-name" content="ELSEN Прайс">
+  <meta name="msapplication-TileColor" content="#1e293b">
+  <meta name="msapplication-tap-highlight" content="no">
+
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="manifest.json">
+
+  <!-- Icons -->
+  <link rel="icon" type="image/svg+xml" href="icons/icon-192.svg">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.svg">
+
+  <!-- Preconnect для CDN -->
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+
+  <!-- External Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <style>
+    /* ═══ ВАШИ ОРИГИНАЛЬНЫЕ СТИЛИ (сохранены) ═══ */
+    /* ... вставьте сюда все ваши оригинальные стили ... */
+
+    /* ═══ PWA-SPECIFIC STYLES ═══ */
+    
+    /* Safe area для iPhone с notch */
+    body {
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+      padding-left: env(safe-area-inset-left);
+      padding-right: env(safe-area-inset-right);
+    }
+
+    /* Offline indicator */
+    .offline-banner {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+      color: white;
+      text-align: center;
+      padding: 8px 16px;
+      font-size: 14px;
+      font-weight: 600;
+      z-index: 9999;
+      transform: translateY(-100%);
+      transition: transform 0.3s ease;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+
+    .offline-banner.visible {
+      transform: translateY(0);
+    }
+
+    /* Install prompt */
+    .install-prompt {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%) translateY(120%);
+      background: linear-gradient(135deg, #1e293b, #334155);
+      color: #f8fafc;
+      padding: 16px 24px;
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      z-index: 9998;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      max-width: 90vw;
+      border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+
+    .install-prompt.visible {
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .install-prompt__icon {
+      width: 40px;
+      height: 40px;
+      flex-shrink: 0;
+    }
+
+    .install-prompt__text {
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    .install-prompt__text strong {
+      display: block;
+      font-size: 15px;
+      margin-bottom: 2px;
+    }
+
+    .install-prompt__btn {
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+
+    .install-prompt__btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+    }
+
+    .install-prompt__btn:active {
+      transform: scale(0.95);
+    }
+
+    .install-prompt__close {
+      background: none;
+      border: none;
+      color: #94a3b8;
+      font-size: 20px;
+      cursor: pointer;
+      padding: 4px 8px;
+      line-height: 1;
+      transition: color 0.2s;
+    }
+
+    .install-prompt__close:hover {
+      color: #f8fafc;
+    }
+
+    /* Update notification */
+    .update-toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: linear-gradient(135deg, #059669, #10b981);
+      color: white;
+      padding: 14px 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(5, 150, 105, 0.4);
+      z-index: 9997;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      transform: translateX(120%);
+      transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .update-toast.visible {
+      transform: translateX(0);
+    }
+
+    .update-toast__btn {
+      background: rgba(255,255,255,0.2);
+      color: white;
+      border: 1px solid rgba(255,255,255,0.3);
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .update-toast__btn:hover {
+      background: rgba(255,255,255,0.3);
+    }
+
+    /* Splash screen */
+    .splash-screen {
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(135deg, #0f172a, #1e293b);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 99999;
+      transition: opacity 0.5s ease;
+    }
+
+    .splash-screen.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .splash-screen__logo {
+      width: 120px;
+      height: 120px;
+      margin-bottom: 24px;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    .splash-screen__title {
+      color: #f8fafc;
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: 4px;
+      margin-bottom: 8px;
+    }
+
+    .splash-screen__subtitle {
+      color: #94a3b8;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .splash-screen__loader {
+      margin-top: 32px;
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(59, 130, 246, 0.2);
+      border-top-color: #3b82f6;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.05); opacity: 0.8; }
+    }
+
+    /* Pull-to-refresh indicator */
+    .pull-indicator {
+      position: fixed;
+      top: -60px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(59, 130, 246, 0.3);
+      border-top-color: #3b82f6;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      transition: top 0.3s ease;
+      z-index: 9996;
+    }
+
+    .pull-indicator.visible {
+      top: 20px;
+    }
+
+    /* Mobile optimizations */
+    @media (max-width: 768px) {
+      .install-prompt {
+        flex-direction: column;
+        text-align: center;
+        padding: 20px;
+        bottom: 10px;
+      }
+    }
+
+    /* Dark mode support */
+    @media (prefers-color-scheme: dark) {
+      :root {
+        color-scheme: dark;
+      }
+    }
+
+    /* Reduced motion */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ═══ SPLASH SCREEN ═══ -->
+  <div class="splash-screen" id="splashScreen">
+    <svg class="splash-screen__logo" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="splashBg" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#1e293b"/>
+          <stop offset="100%" style="stop-color:#0f172a"/>
+        </linearGradient>
+        <linearGradient id="splashAccent" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" style="stop-color:#3b82f6"/>
+          <stop offset="100%" style="stop-color:#8b5cf6"/>
+        </linearGradient>
+      </defs>
+      <rect width="512" height="512" rx="96" fill="url(#splashBg)"/>
+      <rect x="80" y="280" width="64" height="152" rx="12" fill="url(#splashAccent)" opacity="0.9"/>
+      <rect x="168" y="200" width="64" height="232" rx="12" fill="url(#splashAccent)" opacity="0.75"/>
+      <rect x="256" y="240" width="64" height="192" rx="12" fill="url(#splashAccent)" opacity="0.85"/>
+      <rect x="344" y="160" width="64" height="272" rx="12" fill="url(#splashAccent)"/>
+      <polyline points="112,260 200,180 288,220 376,140" fill="none" stroke="#22d3ee" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="112" cy="260" r="10" fill="#22d3ee"/>
+      <circle cx="200" cy="180" r="10" fill="#22d3ee"/>
+      <circle cx="288" cy="220" r="10" fill="#22d3ee"/>
+      <circle cx="376" cy="140" r="10" fill="#22d3ee"/>
+      <text x="256" y="100" text-anchor="middle" font-family="system-ui, sans-serif" font-size="56" font-weight="800" fill="#f8fafc" letter-spacing="8">ELSEN</text>
+    </svg>
+    <div class="splash-screen__title">ELSEN</div>
+    <div class="splash-screen__subtitle">Ценовой анализ</div>
+    <div class="splash-screen__loader"></div>
+  </div>
+
+  <!-- ═══ OFFLINE BANNER ═══ -->
+  <div class="offline-banner" id="offlineBanner">
+    📡 Нет подключения — работаем офлайн
+  </div>
+
+  <!-- ═══ PULL TO REFRESH ═══ -->
+  <div class="pull-indicator" id="pullIndicator"></div>
+
+  <!-- ═══ ВАШ ОРИГИНАЛЬНЫЙ КОНТЕНТ ДАШБОРДА ═══ -->
+  <!-- Вставьте сюда весь ваш оригинальный HTML-контент дашборда -->
+  <div id="app">
+    <!-- ... ваш контент ... -->
+  </div>
+
+  <!-- ═══ INSTALL PROMPT ═══ -->
+  <div class="install-prompt" id="installPrompt">
+    <svg class="install-prompt__icon" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+      <rect width="512" height="512" rx="96" fill="#1e293b"/>
+      <rect x="80" y="280" width="64" height="152" rx="12" fill="#3b82f6" opacity="0.9"/>
+      <rect x="168" y="200" width="64" height="232" rx="12" fill="#8b5cf6" opacity="0.75"/>
+      <rect x="256" y="240" width="64" height="192" rx="12" fill="#3b82f6" opacity="0.85"/>
+      <rect x="344" y="160" width="64" height="272" rx="12" fill="#8b5cf6"/>
+      <text x="256" y="100" text-anchor="middle" font-family="system-ui" font-size="56" font-weight="800" fill="#f8fafc" letter-spacing="8">ELSEN</text>
+    </svg>
+    <div class="install-prompt__text">
+      <strong>Установить приложение?</strong>
+      Быстрый доступ к анализу цен прямо с рабочего стола
+    </div>
+    <button class="install-prompt__btn" id="installBtn">Установить</button>
+    <button class="install-prompt__close" id="installClose">&times;</button>
+  </div>
+
+  <!-- ═══ UPDATE TOAST ═══ -->
+  <div class="update-toast" id="updateToast">
+    ✨ Доступна новая версия
+    <button class="update-toast__btn" id="updateBtn">Обновить</button>
+  </div>
+
+  <!-- ═══ PWA SCRIPTS ═══ -->
+  <script>
+    // ═══════════════════════════════════════════════════
+    // PWA CONTROLLER
+    // ═══════════════════════════════════════════════════
+
+    class PWAController {
+      constructor() {
+        this.deferredPrompt = null;
+        this.newWorker = null;
+        this.isOffline = !navigator.onLine;
+        this.init();
+      }
+
+      async init() {
+        this.hideSplashScreen();
+        this.registerServiceWorker();
+        this.setupOfflineDetection();
+        this.setupInstallPrompt();
+        this.setupPullToRefresh();
+        this.setupKeyboardShortcuts();
+        this.setupDeepLinks();
+        this.logPWAStatus();
+      }
+
+      // ─── SPLASH SCREEN ───
+      hideSplashScreen() {
+        const splash = document.getElementById('splashScreen');
+        if (splash) {
+          // Минимальное время показа splash
+          setTimeout(() => {
+            splash.classList.add('hidden');
+            setTimeout(() => splash.remove(), 500);
+          }, 800);
+        }
+      }
+
+      // ─── SERVICE WORKER REGISTRATION ───
+      async registerServiceWorker() {
+        if (!('serviceWorker' in navigator)) {
+          console.log('[PWA] Service Workers not supported');
+          return;
+        }
+
+        try {
+          const registration = await navigator.serviceWorker.register('/sw.js', {
+            scope: '/'
+          });
+
+          console.log('[PWA] SW registered:', registration.scope);
+
+          // Проверяем обновления
+          registration.addEventListener('updatefound', () => {
+            this.newWorker = registration.installing;
+            this.newWorker.addEventListener('statechange', () => {
+              if (this.newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                this.showUpdateToast();
+              }
+            });
+          });
+
+          // Периодическая проверка обновлений (каждые 30 мин)
+          setInterval(() => registration.update(), 30 * 60 * 1000);
+
+        } catch (error) {
+          console.error('[PWA] SW registration failed:', error);
+        }
+      }
+
+      // ─── OFFLINE DETECTION ───
+      setupOfflineDetection() {
+        const banner = document.getElementById('offlineBanner');
+
+        const updateStatus = () => {
+          this.isOffline = !navigator.onLine;
+          if (banner) {
+            banner.classList.toggle('visible', this.isOffline);
+          }
+          
+          // Вибрация при потере связи (если поддерживается)
+          if (this.isOffline && 'vibrate' in navigator) {
+            navigator.vibrate([100, 50, 100]);
+          }
+        };
+
+        window.addEventListener('online', () => {
+          updateStatus();
+          this.showNotification('Подключение восстановлено', 'success');
+        });
+
+        window.addEventListener('offline', () => {
+          updateStatus();
+          this.showNotification('Работаем офлайн', 'warning');
+        });
+
+        updateStatus();
+      }
+
+      // ─── INSTALL PROMPT ───
+      setupInstallPrompt() {
+        // Не показываем если уже установлено
+        if (window.matchMedia('(display-mode: standalone)').matches) {
+          console.log('[PWA] Already installed');
+          return;
+        }
+
+        // Не показываем если пользователь уже отклонил
+        if (localStorage.getItem('install-dismissed')) {
+          const dismissedAt = parseInt(localStorage.getItem('install-dismissed'));
+          // Показываем снова через 7 дней
+          if (Date.now() - dismissedAt < 7 * 24 * 60 * 60 * 1000) {
+            return;
+          }
+        }
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+          e.preventDefault();
+          this.deferredPrompt = e;
+          
+          // Показываем промпт через 5 секунд после загрузки
+          setTimeout(() => this.showInstallPrompt(), 5000);
+        });
+
+        // iOS detection
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        const isSafari = /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
+        const isStandalone = window.navigator.standalone;
+
+        if (isIOS && isSafari && !isStandalone) {
+          setTimeout(() => this.showIOSInstallInstructions(), 5000);
+        }
+
+        // Кнопки
+        document.getElementById('installBtn')?.addEventListener('click', () => this.installApp());
+        document.getElementById('installClose')?.addEventListener('click', () => this.dismissInstall());
+        document.getElementById('updateBtn')?.addEventListener('click', () => this.applyUpdate());
+      }
+
+      showInstallPrompt() {
+        const prompt = document.getElementById('installPrompt');
+        if (prompt) prompt.classList.add('visible');
+      }
+
+      async installApp() {
+        if (!this.deferredPrompt) {
+          this.showIOSInstallInstructions();
+          return;
+        }
+
+        this.deferredPrompt.prompt();
+        const { outcome } = await this.deferredPrompt.userChoice;
+        
+        console.log(`[PWA] Install outcome: ${outcome}`);
+        this.deferredPrompt = null;
+        
+        document.getElementById('installPrompt')?.classList.remove('visible');
+        
+        if (outcome === 'dismissed') {
+          localStorage.setItem('install-dismissed', Date.now().toString());
+        }
+      }
+
+      dismissInstall() {
+        document.getElementById('installPrompt')?.classList.remove('visible');
+        localStorage.setItem('install-dismissed', Date.now().toString());
+      }
+
+      showIOSInstallInstructions() {
+        this.showNotification(
+          'Нажмите «Поделиться» → «На экран Домой» для установки',
+          'info',
+          5000
+        );
+      }
+
+      // ─── UPDATE TOAST ───
+      showUpdateToast() {
+        const toast = document.getElementById('updateToast');
+        if (toast) toast.classList.add('visible');
+      }
+
+      applyUpdate() {
+        if (this.newWorker) {
+          this.newWorker.postMessage({ type: 'SKIP_WAITING' });
+        }
+        window.location.reload();
+      }
+
+      // ─── PULL TO REFRESH ───
+      setupPullToRefresh() {
+        let startY = 0;
+        let pulling = false;
+        const indicator = document.getElementById('pullIndicator');
+        const threshold = 80;
+
+        document.addEventListener('touchstart', (e) => {
+          if (window.scrollY === 0) {
+            startY = e.touches[0].clientY;
+            pulling = true;
+          }
+        }, { passive: true });
+
+        document.addEventListener('touchmove', (e) => {
+          if (!pulling) return;
+          const diff = e.touches[0].clientY - startY;
+          if (diff > threshold && indicator) {
+            indicator.classList.add('visible');
+          }
+        }, { passive: true });
+
+        document.addEventListener('touchend', async () => {
+          if (indicator?.classList.contains('visible')) {
+            // Обновляем данные
+            await this.refreshData();
+            indicator.classList.remove('visible');
+            this.showNotification('Данные обновлены', 'success');
+          }
+          pulling = false;
+        });
+      }
+
+      async refreshData() {
+        // Здесь можно добавить логику обновления данных
+        console.log('[PWA] Refreshing data...');
+        
+        // Очистка runtime кэша
+        if ('caches' in window) {
+          const cache = await caches.open('elsen-runtime-v1');
+          const keys = await cache.keys();
+          for (const key of keys) {
+            await cache.delete(key);
+          }
+        }
+      }
+
+      // ─── KEYBOARD SHORTCUTS ───
+      setupKeyboardShortcuts() {
+        document.addEventListener('keydown', (e) => {
+          // Ctrl/Cmd + Shift + R — принудительное обновление
+          if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'R') {
+            e.preventDefault();
+            this.forceUpdate();
+          }
+          // Ctrl/Cmd + Shift + O — переключить офлайн-режим
+          if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'O') {
+            e.preventDefault();
+            this.toggleOfflineMode();
+          }
+        });
+      }
+
+      async forceUpdate() {
+        const registration = await navigator.serviceWorker.getRegistration();
+        if (registration) {
+          await registration.update();
+          window.location.reload();
+        }
+      }
+
+      toggleOfflineMode() {
+        // Для тестирования офлайн-режима
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.controller?.postMessage({ type: 'TOGGLE_OFFLINE' });
+        }
+      }
+
+      // ─── DEEP LINKS ───
+      setupDeepLinks() {
+        const params = new URLSearchParams(window.location.search);
+        const action = params.get('action');
+
+        if (action === 'upload') {
+          // Триггерим загрузку файла
+          setTimeout(() => {
+            document.querySelector('input[type="file"]')?.click();
+          }, 1000);
+        }
+      }
+
+      // ─── NOTIFICATIONS ───
+      showNotification(message, type = 'info', duration = 3000) {
+        // Создаём временный toast
+        const toast = document.createElement('div');
+        toast.style.cssText = `
+          position: fixed;
+          top: 20px;
+          left: 50%;
+          transform: translateX(-50%) translateY(-20px);
+          background: ${this.getNotificationColor(type)};
+          color: white;
+          padding: 12px 24px;
+          border-radius: 12px;
+          font-size: 14px;
+          font-weight: 500;
+          z-index: 99999;
+          opacity: 0;
+          transition: all 0.3s ease;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+          max-width: 90vw;
+          text-align: center;
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        requestAnimationFrame(() => {
+          toast.style.opacity = '1';
+          toast.style.transform = 'translateX(-50%) translateY(0)';
+        });
+
+        setTimeout(() => {
+          toast.style.opacity = '0';
+          toast.style.transform = 'translateX(-50%) translateY(-20px)';
+          setTimeout(() => toast.remove(), 300);
+        }, duration);
+      }
+
+      getNotificationColor(type) {
+        const colors = {
+          success: 'linear-gradient(135deg, #059669, #10b981)',
+          warning: 'linear-gradient(135deg, #d97706, #f59e0b)',
+          error: 'linear-gradient(135deg, #dc2626, #ef4444)',
+          info: 'linear-gradient(135deg, #2563eb, #3b82f6)',
+        };
+        return colors[type] || colors.info;
+      }
+
+      // ─── STATUS LOG ───
+      logPWAStatus() {
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+        const hasSW = 'serviceWorker' in navigator;
+        const hasPush = 'PushManager' in window;
+        const hasNotification = 'Notification' in window;
+
+        console.table({
+          'Режим': isStandalone ? '📱 Установлено' : '🌐 Браузер',
+          'Service Worker': hasSW ? '✅' : '❌',
+          'Push API': hasPush ? '✅' : '❌',
+          'Notifications': hasNotification ? '✅' : '❌',
+          'Online': navigator.onLine ? '✅' : '❌',
+        });
+      }
+    }
+
+    // ─── ИНИЦИАЛИЗАЦИЯ ───
+    document.addEventListener('DOMContentLoaded', () => {
+      window.pwa = new PWAController();
+    });
+
+    // ─── BADGE API (для количества уведомлений) ───
+    if ('setAppBadge' in navigator) {
+      // Можно установить бейдж с количеством непрочитанных
+      // navigator.setAppBadge(3);
+    }
+
+    // ─── WAKE LOCK (не гасить экран при работе) ───
+    async function requestWakeLock() {
+      if ('wakeLock' in navigator) {
+        try {
+          const wakeLock = await navigator.wakeLock.request('screen');
+          console.log('[PWA] Wake Lock active');
+          
+          document.addEventListener('visibilitychange', async () => {
+            if (document.visibilityState === 'visible') {
+              await navigator.wakeLock.request('screen');
+            }
+          });
+        } catch (err) {
+          console.log('[PWA] Wake Lock failed:', err);
+        }
+      }
+    }
+
+    // Активируем Wake Lock при загрузке файла
+    document.addEventListener('DOMContentLoaded', () => {
+      // Можно вызвать requestWakeLock() при начале работы
+    });
+  </script>
+
+  <!-- ═══ ВАШИ ОРИГИНАЛЬНЫЕ СКРИПТЫ ДАШБОРДА ═══ -->
+  <script>
+    // ... вставьте сюда ваш оригинальный JS-код дашборда ...
+  </script>
+
+</body>
+</html>
